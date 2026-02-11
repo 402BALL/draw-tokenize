@@ -254,29 +254,42 @@ app.post('/api/tokenize', async (req, res) => {
 
     const connection = new Connection(
       process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com',
-      'confirmed'
+      { commitment: 'confirmed', confirmTransactionInitialTimeout: 120000 }
     );
     
     console.log('Sending transaction...');
     const signature = await connection.sendRawTransaction(tx.serialize(), {
       skipPreflight: true,
-      maxRetries: 3
+      maxRetries: 5
     });
 
     console.log('Transaction sent:', signature);
 
-    // Confirm transaction
-    const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-    
-    if (confirmation.value.err) {
-      console.error('Transaction failed:', confirmation.value.err);
-      return res.status(500).json({ error: 'Transaction failed on-chain' });
-    }
-
     const mintAddress = mintKeypair.publicKey.toBase58();
     const pumpUrl = `https://pump.fun/${mintAddress}`;
 
-    console.log('Token created successfully!');
+    // Try to confirm, but don't fail if it times out — tx was already sent
+    let confirmed = false;
+    try {
+      const latestBlockhash = await connection.getLatestBlockhash('confirmed');
+      const confirmation = await connection.confirmTransaction({
+        signature,
+        blockhash: latestBlockhash.blockhash,
+        lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+      }, 'confirmed');
+      
+      if (confirmation.value.err) {
+        console.error('Transaction failed:', confirmation.value.err);
+        return res.status(500).json({ error: 'Transaction failed on-chain' });
+      }
+      confirmed = true;
+    } catch (confirmErr) {
+      console.warn('Confirmation timed out, but tx was sent. Signature:', signature);
+      // Transaction was sent — we proceed and save the data
+      confirmed = false;
+    }
+
+    console.log('Token created! Confirmed:', confirmed);
     console.log('Mint address:', mintAddress);
     console.log('Pump.fun URL:', pumpUrl);
 
@@ -301,6 +314,7 @@ app.post('/api/tokenize', async (req, res) => {
 
     res.json({
       success: true,
+      confirmed,
       mintAddress,
       pumpUrl,
       signature,

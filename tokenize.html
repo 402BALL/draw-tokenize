@@ -510,6 +510,9 @@
         successContainer.classList.add('visible');
         document.getElementById('pumpLink').href = tokenData.pumpUrl;
         document.getElementById('mintAddress').textContent = 'Mint: ' + tokenData.mintAddress;
+        if (tokenData.confirmed === false) {
+          document.getElementById('mintAddress').textContent += '\n(tx sent, confirming on-chain...)';
+        }
 
       } catch (error) {
         console.error('Tokenization error:', error);
