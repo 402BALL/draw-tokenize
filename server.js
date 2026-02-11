@@ -313,6 +313,50 @@ app.post('/api/tokenize', async (req, res) => {
   }
 });
 
+// ============ SEED/MIGRATE (temporary) ============
+
+app.post('/api/seed', async (req, res) => {
+  try {
+    const { imageData, tool, createdAt, tokenized, tokenData } = req.body;
+    if (!imageData) return res.status(400).json({ error: 'No image data' });
+
+    const matches = imageData.match(/^data:image\/(\w+);base64,(.+)$/);
+    if (!matches) return res.status(400).json({ error: 'Invalid image format' });
+
+    const ext = matches[1];
+    const data = Buffer.from(matches[2], 'base64');
+    const filename = `${uuidv4()}.${ext}`;
+    const filepath = path.join(uploadsDir, filename);
+    fs.writeFileSync(filepath, data);
+
+    const result = await pool.query(
+      `INSERT INTO drawings (filename, image_url, tool, created_at, tokenized, token_name, token_ticker, token_description, token_twitter, mint_address, pump_url, signature, tokenized_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       RETURNING *`,
+      [
+        filename,
+        `/uploads/${filename}`,
+        tool || 'unknown',
+        createdAt || new Date().toISOString(),
+        tokenized || false,
+        tokenData?.name || null,
+        tokenData?.ticker || null,
+        tokenData?.description || null,
+        tokenData?.twitter || null,
+        tokenData?.mintAddress || null,
+        tokenData?.pumpUrl || null,
+        tokenData?.signature || null,
+        tokenData?.tokenizedAt || null
+      ]
+    );
+
+    res.json({ success: true, drawing: rowToDrawing(result.rows[0]) });
+  } catch (error) {
+    console.error('Seed error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============ START SERVER ============
 
 async function start() {
