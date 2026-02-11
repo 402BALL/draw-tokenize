@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/jpeg" href="favicon.jpeg">
+  <title>About</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/splitting/dist/splitting.css" />
+  <link rel="stylesheet" href="https://unpkg.com/splitting/dist/splitting-cells.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.171.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.171.0/examples/jsm/",
+      "three-text": "https://cdn.jsdelivr.net/npm/three-text/dist/index.js",
+      "three-text/three": "https://cdn.jsdelivr.net/npm/three-text/dist/three/index.js"
+    }
+  }
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #f5f0eb;
+      color: #1a1a1a;
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* Loader */
+    .loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background-color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+    }
+    .loader.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .loader .headline--jump {
+      align-items: center;
+      display: flex;
+      font-family: 'Lexend Deca', sans-serif;
+      font-weight: 700;
+      font-size: calc(1rem + 15vmin);
+      justify-content: center;
+      overflow: hidden;
+      perspective: 1000px;
+      color: #1a1a1a;
+      margin: 0;
+    }
+    .loader .headline--jump .char {
+      animation-delay: calc(var(--char-index) * 0.075s);
+      animation-direction: normal;
+      animation-duration: 800ms;
+      animation-iteration-count: infinite;
+      animation-name: jump;
+      animation-timing-function: cubic-bezier(0.165, 0.44, 0.64, 1);
+      animation-fill-mode: forwards;
+      display: inline-block;
+      position: relative;
+      transform-origin: 50% 100%;
+      z-index: 1;
+    }
+    @keyframes jump {
+      20% { transform: translateY(2%) scaleY(0.9); }
+      40% { transform: translateY(-100%) scaleY(1.2); }
+      50% { transform: translateY(10%) scaleY(0.8); }
+      70% { transform: translateY(-5%) scaleY(1); }
+      80%, 100% { transform: translateY(0) scaleY(1); }
+    }
+
+    .back-button {
+      position: fixed;
+      top: 24px;
+      left: 24px;
+      color: #888;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      z-index: 100;
+      transition: color 0.3s ease;
+      letter-spacing: 0.02em;
+    }
+    .back-button:hover { color: #1a1a1a; }
+
+    #three-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      cursor: grab;
+    }
+    #three-canvas:active { cursor: grabbing; }
+
+    .top-info {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 100;
+      text-align: right;
+    }
+    .top-info span {
+      font-size: 11px;
+      font-weight: 500;
+      color: #aaa;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loader -->
+  <div class="loader" id="loader">
+    <h2 data-splitting class="headline headline--jump">Draw</h2>
+  </div>
+
+  <a href="index.html" class="back-button">Back</a>
+
+  <div class="top-info">
+    <span>Scroll to zoom / Drag to rotate</span>
+  </div>
+
+  <canvas id="three-canvas"></canvas>
+
+  <script src="https://unpkg.com/splitting/dist/splitting.min.js"></script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+    // Loader
+    Splitting();
+    setTimeout(() => {
+      document.getElementById('loader').classList.add('hidden');
+    }, 2000);
+
+    // The about text
+    const ABOUT_TEXT = `Hi! I Beri <3
+
+I am a self-taught 3D Artist. You can check all my works on behance and instagram
+https://www.behance.net/rberi_
+https://www.instagram.com/beri.b3d
+
+And so friends, I want to introduce you to my mini project draw
+
+What is it
+Draw is a creative platform that lets you create art using multiple drawing tools and turn your creations into tokens on Solana via Pump.fun.
+
+Choose a drawing tool:
+Fluid Paint, Pencil Sketch, or 3D SSGI
+
+Create your artwork, then tokenize it with one click. Your art becomes a tradeable token.
+
+Follow me on X for updates. View tokenized artworks in the Fashion Gallery. Built with Three.js and love.`;
+
+    // Meshes that are clickable links
+    const clickableLinks = []; // { mesh, url }
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    // Three.js setup
+    const canvas = document.getElementById('three-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf5f0eb);
+
+    const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(0, 0, 30);
+
+    // Environment for reflections
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const environment = new RoomEnvironment();
+    scene.environment = pmremGenerator.fromScene(environment).texture;
+    pmremGenerator.dispose();
+
+    // Subtle directional light
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    dirLight.position.set(5, 10, 7);
+    scene.add(dirLight);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    scene.add(ambientLight);
+
+    // Controls
+    const controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.enablePan = true;
+    controls.minDistance = 5;
+    controls.maxDistance = 80;
+    controls.target.set(0, 0, 0);
+    controls.autoRotate = false;
+    controls.update();
+
+    // Text material
+    const textMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x888888,
+      roughness: 0.35,
+      metalness: 0.0,
+      clearcoat: 0.1,
+      clearcoatRoughness: 0.4,
+    });
+
+    let textGroup = null;
+
+    async function createText() {
+      let useThreeText = false;
+
+      // Try three-text first
+      try {
+        const { Text } = await import('three-text/three');
+
+        // Init HarfBuzz
+        const wasmBuffer = await fetch('https://cdn.jsdelivr.net/npm/three-text/dist/hb.wasm')
+          .then(r => r.arrayBuffer());
+        await Text.setHarfBuzzBuffer(wasmBuffer);
+
+        const result = await Text.create({
+          font: 'https://fonts.gstatic.com/s/inter/v18/UcCo3FwrK3iLTcviYwY.woff',
+          text: ABOUT_TEXT,
+          fontSize: 28,
+          depth: 4,
+          lineHeight: 1.5,
+          width: 400,
+          align: 'justify',
+          letterSpacing: 0,
+        });
+
+        const mesh = new THREE.Mesh(result.geometry, textMaterial);
+
+        // Center the mesh
+        result.geometry.computeBoundingBox();
+        const box = result.geometry.boundingBox;
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        mesh.position.sub(center);
+
+        // Scale to fit nicely
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const maxDim = Math.max(size.x, size.y);
+        const scale = 20 / maxDim;
+        mesh.scale.setScalar(scale);
+
+        textGroup = new THREE.Group();
+        textGroup.add(mesh);
+        scene.add(textGroup);
+        useThreeText = true;
+        console.log('three-text loaded successfully');
+
+      } catch (e) {
+        console.warn('three-text CDN failed, using fallback:', e.message);
+      }
+
+      // Fallback: TextGeometry line by line
+      if (!useThreeText) {
+        const { FontLoader } = await import('three/addons/loaders/FontLoader.js');
+        const { TextGeometry } = await import('three/addons/geometries/TextGeometry.js');
+
+        const loader = new FontLoader();
+        loader.load('https://cdn.jsdelivr.net/npm/three@0.171.0/examples/fonts/helvetiker_regular.typeface.json', (font) => {
+          textGroup = new THREE.Group();
+
+          const lines = ABOUT_TEXT.split('\n');
+          const lineHeight = 0.7;
+          const fontSize = 0.32;
+          let yPos = (lines.length * lineHeight) / 2;
+
+          lines.forEach((line, i) => {
+            if (line.trim() === '') {
+              yPos -= lineHeight;
+              return;
+            }
+
+            // Determine style
+            let size = fontSize;
+            let depth = 0.06;
+            let mat = textMaterial;
+
+            // "Hi! I Beri" header - bigger + clickable link to X (blue)
+            if (i === 0) {
+              size = 0.5;
+              depth = 0.1;
+              mat = new THREE.MeshPhysicalMaterial({
+                color: 0x4a9eed,
+                roughness: 0.25,
+                metalness: 0.05,
+                clearcoat: 0.2,
+                clearcoatRoughness: 0.3,
+              });
+            }
+
+            // Section headers
+            if (line === 'What is it' || line === 'Choose a drawing tool:') {
+              mat = new THREE.MeshPhysicalMaterial({
+                color: 0x666666,
+                roughness: 0.3,
+                metalness: 0.0,
+                clearcoat: 0.15,
+              });
+              size = 0.38;
+              depth = 0.08;
+            }
+
+            // URLs - blue to indicate links
+            if (line.startsWith('https://')) {
+              mat = new THREE.MeshPhysicalMaterial({
+                color: 0x4a9eed,
+                roughness: 0.3,
+                metalness: 0.0,
+                clearcoat: 0.1,
+              });
+              size = 0.26;
+            }
+
+            try {
+              const geo = new TextGeometry(line, {
+                font: font,
+                size: size,
+                depth: depth,
+                curveSegments: 8,
+                bevelEnabled: true,
+                bevelThickness: 0.008,
+                bevelSize: 0.005,
+                bevelSegments: 3,
+              });
+
+              geo.computeBoundingBox();
+              const width = geo.boundingBox.max.x - geo.boundingBox.min.x;
+
+              const mesh = new THREE.Mesh(geo, mat);
+              mesh.position.x = -width / 2; // Center each line
+              mesh.position.y = yPos;
+
+              textGroup.add(mesh);
+
+              // Track clickable lines
+              if (i === 0) {
+                clickableLinks.push({ mesh, url: 'https://x.com/beribr_' });
+              }
+              if (line.startsWith('https://www.behance.net')) {
+                clickableLinks.push({ mesh, url: 'https://www.behance.net/rberi_' });
+              }
+              if (line.startsWith('https://www.instagram.com')) {
+                clickableLinks.push({ mesh, url: 'https://www.instagram.com/beri.b3d' });
+              }
+            } catch (err) {
+              // Skip lines with unsupported characters
+              console.warn('Skipping line:', line, err.message);
+            }
+
+            yPos -= lineHeight;
+          });
+
+          scene.add(textGroup);
+        });
+      }
+    }
+
+    // Animation
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    createText();
+    animate();
+
+    // Click detection for linked text
+    canvas.addEventListener('click', (e) => {
+      if (clickableLinks.length === 0 || !textGroup) return;
+      pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+      pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const allMeshes = clickableLinks.map(l => l.mesh);
+      const intersects = raycaster.intersectObjects(allMeshes, true);
+      if (intersects.length > 0) {
+        const hit = intersects[0].object;
+        const link = clickableLinks.find(l => l.mesh === hit);
+        if (link) window.open(link.url, '_blank');
+      }
+    });
+
+    // Hover cursor change for linked text
+    canvas.addEventListener('pointermove', (e) => {
+      if (clickableLinks.length === 0 || !textGroup) return;
+      pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+      pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const allMeshes = clickableLinks.map(l => l.mesh);
+      const intersects = raycaster.intersectObjects(allMeshes, true);
+      canvas.style.cursor = intersects.length > 0 ? 'pointer' : 'grab';
+    });
+
+    // Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+
+</body>
+</html>

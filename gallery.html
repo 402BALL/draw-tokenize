@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <link rel="icon" type="image/jpeg" href="favicon.jpeg" />
+    <title>Draw&Tokenize</title>
+    <link rel="stylesheet" href="./base.css" />
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      /* Back button */
+      .back-btn {
+        position: fixed;
+        top: 1.5rem;
+        left: 1.5rem;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.6rem 1.2rem;
+        background: rgba(255,255,255,0.85);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(0,0,0,0.1);
+        border-radius: 2rem;
+        color: #1a1a1a;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+        font-size: 0.95rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1), box-shadow 0.3s ease;
+        cursor: pointer;
+      }
+      .back-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        text-decoration: none;
+      }
+      .back-btn:active {
+        transform: scale(0.95);
+      }
+      .back-btn svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      /* Hide the original frame header */
+      .frame {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Back to main page -->
+    <a href="index.html" class="back-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5"></path>
+        <path d="M12 19l-7-7 7-7"></path>
+      </svg>
+      Back
+    </a>
+
+    <main class="stage" aria-live="polite">
+      <div id="loader" class="loader" aria-label="Loading" aria-live="assertive">
+        <div class="loader__content">
+          <div class="loader__ring" aria-hidden="true"></div>
+        </div>
+      </div>
+      <canvas id="bg" aria-hidden="true"></canvas>
+      <section id="cards" class="cards" aria-label="Infinite carousel of images"></section>
+    </main>
+
+    <!-- GSAP core for entry animation -->
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+    <script src="./script.js" defer></script>
+  </body>
+</html>

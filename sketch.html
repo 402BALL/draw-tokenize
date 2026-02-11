@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/jpeg" href="favicon.jpeg">
+  <title>Sketch — Draw&Tokenize</title>
+  <style>
+    #mfPreviewBar {
+      display: none !important;
+    }
+
+    html,
+    body {
+      position: fixed;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    body {
+      background-color: #e0e0e0;
+      cursor: url('https://s3-us-west-2.amazonaws.com/s.cdpn.io/605067/cursor.png'), auto;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      margin: 0;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #canvas-container {
+      position: relative;
+      width: 1000px;
+      height: 1000px;
+      background: #f7f4f0;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+    }
+
+    button {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    .colours {
+      bottom: 30px;
+      display: none;
+      left: 50%;
+      list-style-type: none;
+      padding-left: 0;
+      position: absolute;
+      transform: translateX(-50%);
+      z-index: 10;
+    }
+
+    @media (min-width: 1024px) {
+      .colours {
+        display: flex;
+      }
+    }
+
+    .colours li {
+      border-radius: 50%;
+      display: inline-block;
+      height: 14px;
+      margin: 0 12px;
+      width: 14px;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .colours li:hover {
+      transform: scale(1.5);
+    }
+
+    .colours li.active {
+      outline: 2px solid #555;
+      outline-offset: 3px;
+    }
+
+    .colours li:nth-child(1) {
+      background-color: #100c08;
+    }
+    .colours li:nth-child(2) {
+      background-color: #759BA9;
+    }
+    .colours li:nth-child(3) {
+      background-color: #77dd77;
+    }
+    .colours li:nth-child(4) {
+      background-color: #ff6961;
+    }
+    .colours li:nth-child(5) {
+      background-color: #ffd1dc;
+    }
+
+    .pencil__refresh {
+      background-color: #FCF4EA;
+      border: none;
+      border-radius: 50%;
+      bottom: 18px;
+      cursor: pointer;
+      height: 26px;
+      padding: 4px 1px 0px;
+      position: absolute;
+      left: 50%;
+      text-align: center;
+      transform: translateX(-50%);
+      width: auto;
+      z-index: 3;
+    }
+
+    @media (min-width: 1024px) {
+      .pencil__refresh {
+        bottom: 27px;
+        left: 30px;
+        transform: none;
+      }
+    }
+
+    .pencil__submit {
+      bottom: 27px;
+      display: none;
+      position: absolute;
+      right: 30px;
+      z-index: 4;
+    }
+
+    @media (min-width: 1024px) {
+      .pencil__submit {
+        display: block;
+      }
+    }
+
+    .btn {
+      background-color: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      letter-spacing: .05em;
+      outline: none;
+      padding: 5px 10px 1px 10px;
+      text-transform: uppercase;
+      user-select: none;
+      -moz-user-select: none;
+    }
+
+    /* Back button */
+    .back-btn {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 1rem;
+      background: rgba(247, 244, 240, 0.9);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(0,0,0,0.1);
+      border-radius: 2rem;
+      color: #1a1a1a;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1), box-shadow 0.3s ease;
+    }
+    .back-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+    .back-btn:active {
+      transform: scale(0.95);
+    }
+    .back-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+    .tokenize-btn {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 10000;
+      padding: 0.7rem 1.4rem;
+      background: #1a1a1a;
+      color: #fff;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      border: none;
+      border-radius: 2rem;
+      cursor: pointer;
+      transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1), box-shadow 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tokenize-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    }
+    .tokenize-btn:active {
+      transform: scale(0.95);
+    }
+  </style>
+</head>
+<body>
+
+  <button class="tokenize-btn" id="tokenizeBtn" onclick="goTokenize()">Tokenize</button>
+
+  <!-- Back button -->
+  <a href="gallery.html" class="back-btn">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 12H5"></path>
+      <path d="M12 19l-7-7 7-7"></path>
+    </svg>
+    Back
+  </a>
+
+  <div id="canvas-container">
+  </div>
+
+  <ul class="colours">
+    <li class="active"></li>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+  </ul>
+  <button class="pencil__refresh btn">Clear</button>
+  <button class="pencil__submit btn">Save</button>
+
+  <!-- Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/MTLLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/OBJLoader.js"></script>
+
+  <script>
+    // -- Colors
+    const colors = [
+      "#100c08",
+      "#759BA9",
+      "#77dd77",
+      "#ff6961",
+      "#ffd1dc"
+    ];
+
+    let currentColorIndex = 0;
+
+    let colorButtons = document.querySelectorAll('.colours li'),
+        colorButtonsL = colorButtons.length;
+
+    for (var x = 0; x < colorButtonsL; x++) {
+      ((x) => {
+        colorButtons[x].addEventListener('click', () => {
+          setActiveColour(x);
+        });
+      })(x);
+    }
+
+    function setActiveColour(x) {
+      currentColorIndex = x;
+      colorButtons.forEach(b => b.classList.remove('active'));
+      colorButtons[x].classList.add('active');
+    }
+
+    // -- Drawing Canvas
+    const CANVAS_SIZE = 1000;
+    const container = document.getElementById('canvas-container');
+
+    const drawingCanvas = document.createElement('canvas');
+    drawingCanvas.width = CANVAS_SIZE;
+    drawingCanvas.height = CANVAS_SIZE;
+
+    drawingCanvas.style.position = 'absolute';
+    drawingCanvas.style.left = 0;
+    drawingCanvas.style.top = 0;
+    drawingCanvas.style.width = '100%';
+    drawingCanvas.style.height = '100%';
+    drawingCanvas.style.zIndex = 1;
+
+    container.appendChild(drawingCanvas);
+
+    var drawingCtx = drawingCanvas.getContext('2d');
+
+    let isDrawing,
+        newlyUp = false,
+        lastPoint;
+
+    let pencilPathDefaults = {
+      minThickness: .2,
+      maxThickness: 2,
+    };
+
+    let pencilPathCurrent = {
+      thickness: .2
+    };
+
+    let pencilPathTarget = {
+      thickness: .2
+    };
+
+    document.addEventListener('touchstart', handleMouseDown);
+    document.addEventListener('mousedown', handleMouseDown);
+
+    function getLocalCoords(clientX, clientY) {
+      var rect = container.getBoundingClientRect();
+      return {
+        x: (clientX - rect.left) / rect.width * CANVAS_SIZE,
+        y: (clientY - rect.top) / rect.height * CANVAS_SIZE
+      };
+    }
+
+    function handleMouseDown(e) {
+      if (e.target.localName !== 'canvas') return;
+      isDrawing = true;
+      pencilTargetPos.height = 0;
+      pencilTargetPos.heightRotate = .2;
+
+      pencilPathTarget.thickness = pencilPathDefaults.maxThickness;
+
+      let xPos = (e.touches ? e.touches[0].clientX : e.clientX),
+          yPos = (e.touches ? e.touches[0].clientY : e.clientY);
+
+      let currentPoint = getLocalCoords(xPos, yPos);
+
+      drawingCtx.beginPath();
+      drawingCtx.fillStyle = colors[currentColorIndex];
+      drawingCtx.globalAlpha = .9;
+      drawingCtx.arc(
+        currentPoint.x + 5, currentPoint.y + 5, pencilPathDefaults.thickness,
+        false, Math.PI * 2, false);
+      drawingCtx.fill();
+
+      lastPoint = currentPoint;
+    }
+
+    document.addEventListener('touchend', handleMouseUp);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    function handleMouseUp() {
+      newlyUp = true;
+      isDrawing = false;
+      pencilTargetPos.height = pencilDefaultPos.height;
+      pencilTargetPos.heightRotate = 0;
+      pencilPathTarget.thickness = pencilPathDefaults.minThickness;
+
+      setTimeout(fullyUp, 50);
+    }
+
+    function fullyUp() {
+      newlyUp = false;
+    }
+
+    // -- Pencil (Three.js)
+    var renderer = new THREE.WebGLRenderer({
+      alpha: true,
+      antialias: true,
+      autoClear: true
+    });
+
+    renderer.setClearColor(0x000000, 0);
+    renderer.setPixelRatio(1);
+    renderer.setSize(CANVAS_SIZE, CANVAS_SIZE);
+    renderer.domElement.style.zIndex = 5;
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.left = '0';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+    renderer.domElement.style.pointerEvents = 'none';
+    container.appendChild(renderer.domElement);
+
+    function fullScreen() {
+      // Fixed 1000x1000 canvas, no resize needed
+    }
+
+    window.addEventListener('resize', fullScreen, false);
+
+    var scene = new THREE.Scene();
+
+    // Lighting
+    let hemiLight, dirLight;
+
+    function createLights() {
+      hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.6);
+      hemiLight.color.setHSL(0.6, 1, 0.2);
+      hemiLight.groundColor.setHSL(0.095, 1, 0.75);
+      hemiLight.position.set(0, 0, 50);
+      scene.add(hemiLight);
+
+      directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+      directionalLight.color.setHSL(1, 1, 1);
+      directionalLight.position.set(-.5, 1, 10);
+      scene.add(directionalLight);
+      directionalLight.castShadow = true;
+      directionalLight.shadow.mapSize.width = 2048;
+      directionalLight.shadow.mapSize.height = 2048;
+
+      spotLight = new THREE.SpotLight(0xffffff, 0.4);
+      spotLight.color.setHSL(1, 1, 1);
+      spotLight.position.set(-7, 1, 2);
+      scene.add(spotLight);
+      spotLight.castShadow = false;
+      spotLight.shadow.mapSize.width = 2048;
+      spotLight.shadow.mapSize.height = 2048;
+
+      topLight = new THREE.SpotLight(0xffffff, 0.1);
+      topLight.color.setHSL(1, 1, 1);
+      topLight.position.set(1, -7, 2);
+      scene.add(topLight);
+      topLight.castShadow = false;
+      topLight.shadow.mapSize.width = 2048;
+      topLight.shadow.mapSize.height = 2048;
+    }
+
+    createLights();
+
+    function createGround() {
+      let groundGeo = new THREE.PlaneBufferGeometry(10000, 10000);
+      let groundMat = new THREE.ShadowMaterial();
+      groundMat.opacity = 0.1;
+
+      var ground = new THREE.Mesh(groundGeo, groundMat);
+      ground.position.z = 0;
+      ground.position.y = 0;
+      ground.receiveShadow = true;
+
+      scene.add(ground);
+    }
+
+    createGround();
+
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMapSoft = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    var camera = new THREE.PerspectiveCamera(8, 1, 1, 10000);
+    camera.position.y = 0;
+    camera.position.z = 12;
+
+    // Load pencil model
+    const codepenAssetUrl = 'https://s3-us-west-2.amazonaws.com/s.cdpn.io/605067/';
+
+    let onProgress = function(xhr) {
+      if (xhr.lengthComputable) {
+        let percentComplete = xhr.loaded / xhr.total * 100;
+      }
+    };
+
+    let onError = function(xhr) {
+      console.log('Model loading error');
+    };
+
+    var mtlLoader = new THREE.MTLLoader();
+    mtlLoader.setPath(codepenAssetUrl);
+
+    let pencil,
+        pencilDefaultPos = {
+          height: .04,
+          xRotate: 0,
+          yRotate: 0,
+          zRotate: 0
+        },
+        pencilPos = {
+          height: pencilDefaultPos.height,
+          xRotate: 0,
+          yRotate: 0,
+          zRotate: 0
+        },
+        pencilTargetPos = {
+          height: pencilDefaultPos.height,
+          xRotate: 0,
+          yRotate: 0,
+          zRotate: 0,
+          heightRotate: 0
+        };
+
+    mtlLoader.load('pencil-multi.mtl', function(materials) {
+      materials.preload();
+
+      var objLoader = new THREE.OBJLoader();
+      objLoader.setMaterials(materials);
+      objLoader.setPath(codepenAssetUrl);
+      objLoader.load('pencil-multi.obj', function(obj) {
+
+        obj.traverse(function(child) {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            let area = new THREE.Box3();
+            area.setFromObject(child);
+            obj.position.y = 0;
+          }
+        });
+
+        obj.castShadow = true;
+        pencil = obj;
+
+        rotateAroundWorldAxis(pencil, new THREE.Vector3(1, 0, 0), THREE.Math.degToRad(90));
+        rotateAroundWorldAxis(pencil, new THREE.Vector3(1, 0, 0), THREE.Math.degToRad(-10));
+        rotateAroundWorldAxis(pencil, new THREE.Vector3(0, 1, 0), THREE.Math.degToRad(20));
+
+        pencilDefaultPos.xRotate = pencil.rotation.x;
+        pencilDefaultPos.yRotate = pencil.rotation.y;
+        pencilDefaultPos.zRotate = pencil.rotation.z;
+
+        scene.add(pencil);
+
+        animate();
+        document.addEventListener('touchmove', stopScroll);
+        document.addEventListener('touchmove', mouseMove);
+        document.addEventListener('mousemove', mouseMove);
+
+      }, onProgress, onError, null, false);
+    }, onProgress, onError, null, false);
+
+    function animate() {
+      // Pencil position from paper
+      pencilPos.height += (pencilTargetPos.height - pencilPos.height) * .2;
+
+      // Move pencil
+      pencil.position.copy(mousePos);
+      pencil.position.x += pencilPos.height;
+      pencil.position.y += pencilPos.height;
+      pencil.position.z += pencilPos.height;
+
+      // Pencil thickness
+      pencilPathCurrent.thickness += (pencilPathTarget.thickness - pencilPathCurrent.thickness) * .2;
+
+      // Tilt pencil — x
+      if (isNotClose(pencilPos.xRotate, pencilTargetPos.xRotate)) {
+        let newRotate = (pencilTargetPos.xRotate - pencilPos.xRotate) * .2;
+        pencilPos.xRotate += Math.round(newRotate * 1000) / 1000;
+        pencil.rotation.x = pencilPos.xRotate + pencilDefaultPos.xRotate;
+      }
+
+      // y
+      if (isNotClose(pencilPos.yRotate, pencilTargetPos.yRotate)) {
+        let newRotate = (pencilTargetPos.yRotate - pencilPos.yRotate) * .2;
+        pencilPos.yRotate += Math.round(newRotate * 1000) / 1000;
+        pencil.rotation.y = pencilPos.yRotate + pencilDefaultPos.yRotate;
+      }
+
+      // z
+      let targetZAngle = pencilTargetPos.zRotate + pencilTargetPos.heightRotate;
+      if (isNotClose(pencilPos.zRotate, targetZAngle)) {
+        let newRotate = (targetZAngle - pencilPos.zRotate) * .2;
+        pencilPos.zRotate += Math.round(newRotate * 1000) / 1000;
+        pencil.rotation.z = pencilPos.zRotate + pencilDefaultPos.zRotate;
+      }
+
+      window.requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+
+    function clearCanvas() {
+      drawingCtx.clearRect(0, 0, drawingCtx.canvas.width, drawingCtx.canvas.height);
+    }
+
+    let mouse = { x: 0, y: 0 },
+        mousePos = new THREE.Vector3(0, 0, 0),
+        mouseDirection = { x: 1, y: 1 };
+
+    function stopScroll(e) {
+      e.preventDefault();
+    }
+
+    function mouseMove(e) {
+      let xPos = (e.touches ? e.touches[0].clientX : e.clientX),
+          yPos = (e.touches ? e.touches[0].clientY : e.clientY);
+
+      e.preventDefault();
+      var rect = container.getBoundingClientRect();
+      mouse.x = ((xPos - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((yPos - rect.top) / rect.height) * 2 + 1;
+
+      var localPt = getLocalCoords(xPos, yPos);
+
+      if (!lastPoint) {
+        lastPoint = { x: localPt.x, y: localPt.y };
+      }
+
+      var vector = new THREE.Vector3(mouse.x + .01, mouse.y - .01, 0.5);
+      vector.unproject(camera);
+
+      var dir = vector.sub(camera.position).normalize();
+      var distance = -camera.position.z / dir.z;
+      mousePos = camera.position.clone().add(dir.multiplyScalar(distance));
+
+      var currentPoint = { x: localPt.x, y: localPt.y };
+      var angle = angleBetween(lastPoint, currentPoint);
+      let xDist = distanceBetweenSingle(lastPoint.x, currentPoint.x);
+      let yDist = distanceBetweenSingle(lastPoint.y, currentPoint.y);
+
+      mouseDirection.x = (currentPoint.x > lastPoint.x ? 1 : -1);
+      mouseDirection.y = (currentPoint.y > lastPoint.y ? -1 : 1);
+
+      let newXAngle = (yDist / 100);
+      let newZAngle = (xDist / 100) * -1;
+      let maxAngle = .25;
+
+      pencilTargetPos.xRotate = (newXAngle > -maxAngle && newXAngle < maxAngle ? newXAngle : (newXAngle < -maxAngle ? -maxAngle : maxAngle));
+      pencilTargetPos.zRotate = (newZAngle > -maxAngle && newZAngle < maxAngle ? newZAngle : (newZAngle < -maxAngle ? -maxAngle : maxAngle));
+
+      if (isDrawing || newlyUp) {
+        let dist = distanceBetween(lastPoint, currentPoint);
+
+        for (var i = 0; i < dist; i += .3) {
+          x = lastPoint.x + (Math.sin(angle) * i);
+          y = lastPoint.y + (Math.cos(angle) * i);
+
+          drawingCtx.beginPath();
+          drawingCtx.fillStyle = colors[currentColorIndex];
+          drawingCtx.globalAlpha = getRandomInt(.15, .25);
+          drawingCtx.arc(
+            x + 5, y + 5, pencilPathCurrent.thickness,
+            false, Math.PI * 2, false);
+          drawingCtx.fill();
+        }
+      }
+
+      lastPoint = currentPoint;
+    }
+
+    // Refresh
+    let refreshBtn = document.querySelector('.pencil__refresh');
+    refreshBtn.addEventListener('click', handleRefresh);
+
+    function handleRefresh(e) {
+      e.preventDefault();
+      clearCanvas();
+    }
+
+    // Save — proper download
+    let submitBtn = document.querySelector('.pencil__submit');
+    submitBtn.addEventListener('click', handleSubmit);
+
+    function handleSubmit(e) {
+      e.preventDefault();
+      savePNG();
+    }
+
+    function savePNG() {
+      const freshCanvas = document.createElement('canvas');
+      freshCanvas.width = drawingCanvas.width;
+      freshCanvas.height = drawingCanvas.height;
+
+      let freshCtx = freshCanvas.getContext('2d');
+      freshCtx.fillStyle = "#f7f4f0";
+      freshCtx.fillRect(0, 0, freshCanvas.width, freshCanvas.height);
+      freshCtx.drawImage(drawingCanvas, 0, 0);
+
+      let dataURL = freshCanvas.toDataURL('image/png');
+
+      // Store for future logging
+      window.lastSavedSketch = {
+        dataURL: dataURL,
+        width: freshCanvas.width,
+        height: freshCanvas.height,
+        timestamp: new Date().toISOString()
+      };
+
+      // Download
+      var link = document.createElement('a');
+      link.download = 'sketch_' + Date.now() + '.png';
+      link.href = dataURL;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Utilities
+    function rotateAroundWorldAxis(obj, axis, radians) {
+      let rotWorldMatrix = new THREE.Matrix4();
+      rotWorldMatrix.makeRotationAxis(axis.normalize(), radians);
+      rotWorldMatrix.multiply(obj.matrix);
+      obj.matrix = rotWorldMatrix;
+      obj.setRotationFromMatrix(obj.matrix);
+    }
+
+    function isNotClose(current, target) {
+      return (current < target - .004 || current > target + .004);
+    }
+
+    function getRandomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function distanceBetween(point1, point2) {
+      return Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2));
+    }
+
+    function distanceBetweenSingle(point1, point2) {
+      return point1 - point2;
+    }
+
+    function angleBetween(point1, point2) {
+      return Math.atan2(point2.x - point1.x, point2.y - point1.y);
+    }
+
+    function direction(point1, point2) {
+      return Math.atan2(point1, point2);
+    }
+
+    function goTokenize() {
+      var btn = document.getElementById('tokenizeBtn');
+      btn.textContent = 'Saving...';
+      btn.disabled = true;
+
+      // Use the same method as savePNG — compose drawing onto background
+      var freshCanvas = document.createElement('canvas');
+      freshCanvas.width = CANVAS_SIZE;
+      freshCanvas.height = CANVAS_SIZE;
+      var freshCtx = freshCanvas.getContext('2d');
+      freshCtx.fillStyle = "#f7f4f0";
+      freshCtx.fillRect(0, 0, freshCanvas.width, freshCanvas.height);
+      freshCtx.drawImage(drawingCanvas, 0, 0);
+
+      var imageData = freshCanvas.toDataURL('image/png');
+
+      fetch('/api/drawings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageData: imageData, tool: 'Sketch' })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.success && data.drawing) {
+          window.location.href = 'tokenize.html?id=' + data.drawing.id;
+        } else {
+          throw new Error(data.error || 'Failed to save');
+        }
+      })
+      .catch(function(err) {
+        alert('Error: ' + err.message);
+        btn.textContent = 'Tokenize';
+        btn.disabled = false;
+      });
+    }
+  </script>
+</body>
+</html>
+

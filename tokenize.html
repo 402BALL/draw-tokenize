@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/jpeg" href="favicon.jpeg">
+  <title>Tokenize Your Drawing</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Lexend Deca', sans-serif;
+      background: #ffffff;
+      color: #1a1a1a;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .back-button {
+      position: fixed;
+      top: 24px;
+      left: 24px;
+      color: #888;
+      font-family: 'Lexend Deca', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      z-index: 100;
+      transition: color 0.3s ease;
+    }
+
+    .back-button:hover { color: #1a1a1a; }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 80px 24px 60px;
+      display: flex;
+      gap: 48px;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+
+    /* Left side - Image preview */
+    .preview-section {
+      flex: 1;
+      position: sticky;
+      top: 80px;
+    }
+
+    .preview-card {
+      background: #f8f8f8;
+      border-radius: 16px;
+      overflow: hidden;
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .preview-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .preview-placeholder {
+      color: #ccc;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .preview-tool {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Right side - Form */
+    .form-section {
+      flex: 1;
+      padding-top: 8px;
+    }
+
+    .form-title {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+
+    .form-subtitle {
+      font-size: 14px;
+      color: #999;
+      margin-bottom: 32px;
+      font-weight: 400;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #eee;
+      border-radius: 12px;
+      font-family: 'Lexend Deca', sans-serif;
+      font-size: 15px;
+      font-weight: 400;
+      color: #1a1a1a;
+      background: #fafafa;
+      transition: border-color 0.3s ease, background 0.3s ease;
+      outline: none;
+    }
+
+    .form-input:focus {
+      border-color: #1a1a1a;
+      background: #fff;
+    }
+
+    .form-input::placeholder {
+      color: #bbb;
+    }
+
+    .form-input.ticker {
+      text-transform: uppercase;
+    }
+
+    .form-textarea {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #eee;
+      border-radius: 12px;
+      font-family: 'Lexend Deca', sans-serif;
+      font-size: 15px;
+      font-weight: 400;
+      color: #1a1a1a;
+      background: #fafafa;
+      transition: border-color 0.3s ease, background 0.3s ease;
+      outline: none;
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .form-textarea:focus {
+      border-color: #1a1a1a;
+      background: #fff;
+    }
+
+    .form-textarea::placeholder {
+      color: #bbb;
+    }
+
+    .form-hint {
+      font-size: 11px;
+      color: #bbb;
+      margin-top: 4px;
+    }
+
+    .char-count {
+      font-size: 11px;
+      color: #bbb;
+      text-align: right;
+      margin-top: 4px;
+    }
+
+    .divider {
+      height: 1px;
+      background: #eee;
+      margin: 28px 0;
+    }
+
+    /* Tokenize button */
+    .tokenize-btn {
+      width: 100%;
+      padding: 16px 24px;
+      background: #1a1a1a;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Lexend Deca', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tokenize-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+
+    .tokenize-btn:active {
+      transform: translateY(0);
+    }
+
+    .tokenize-btn:disabled {
+      background: #ddd;
+      color: #999;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .tokenize-btn .btn-text { position: relative; z-index: 1; }
+
+    .tokenize-btn .btn-loader {
+      display: none;
+      position: relative;
+      z-index: 1;
+    }
+
+    .tokenize-btn.loading .btn-text { display: none; }
+    .tokenize-btn.loading .btn-loader { display: inline-flex; align-items: center; gap: 8px; }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Success state */
+    .success-container {
+      display: none;
+      text-align: center;
+      padding: 32px 0;
+    }
+
+    .success-container.visible { display: block; }
+
+    .success-icon {
+      width: 64px;
+      height: 64px;
+      background: #1a1a1a;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+
+    .success-icon svg { width: 28px; height: 28px; }
+
+    .success-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .success-subtitle {
+      font-size: 14px;
+      color: #999;
+      margin-bottom: 24px;
+    }
+
+    .success-link {
+      display: inline-block;
+      padding: 12px 24px;
+      background: #1a1a1a;
+      color: white;
+      text-decoration: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      transition: transform 0.3s ease;
+    }
+
+    .success-link:hover { transform: translateY(-2px); }
+
+    .success-mint {
+      font-size: 12px;
+      color: #bbb;
+      margin-top: 16px;
+      word-break: break-all;
+      font-family: monospace;
+    }
+
+    /* Error state */
+    .error-msg {
+      display: none;
+      background: #fff0f0;
+      border: 1px solid #ffcccc;
+      color: #cc3333;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .error-msg.visible { display: block; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+        padding: 70px 20px 40px;
+        gap: 24px;
+      }
+      .preview-section {
+        position: static;
+        width: 100%;
+      }
+      .preview-card {
+        aspect-ratio: auto;
+        max-height: 300px;
+      }
+      .form-title { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <a href="javascript:history.back()" class="back-button">← Back</a>
+
+  <div class="container">
+    <!-- Image Preview -->
+    <div class="preview-section">
+      <div class="preview-card" id="previewCard">
+        <div class="preview-placeholder" id="previewPlaceholder">No image loaded</div>
+        <img id="previewImage" style="display:none;" alt="Your drawing">
+        <div class="preview-tool" id="previewTool" style="display:none;"></div>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div class="form-section">
+      <h1 class="form-title">Tokenize</h1>
+      <p class="form-subtitle">Turn your drawing into a token on Pump.fun</p>
+
+      <div id="formContainer">
+        <div class="error-msg" id="errorMsg"></div>
+
+        <div class="form-group">
+          <label class="form-label">Token Name *</label>
+          <input type="text" class="form-input" id="tokenName" placeholder="My Cool Drawing" maxlength="32">
+          <div class="char-count"><span id="nameCount">0</span>/32</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Ticker *</label>
+          <input type="text" class="form-input ticker" id="tokenTicker" placeholder="DRAW" maxlength="10">
+          <div class="form-hint">3-10 characters, uppercase</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea class="form-textarea" id="tokenDescription" placeholder="A unique piece of art created on Draw&Tokenize..." maxlength="200"></textarea>
+          <div class="char-count"><span id="descCount">0</span>/200</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="form-group">
+          <label class="form-label">Twitter Link</label>
+          <input type="text" class="form-input" id="tokenTwitter" placeholder="https://x.com/username">
+          <div class="form-hint">Full link to your Twitter profile</div>
+        </div>
+
+        <button class="tokenize-btn" id="tokenizeBtn" disabled>
+          <span class="btn-text">Create Token on Pump.fun</span>
+          <span class="btn-loader"><span class="spinner"></span> Creating token...</span>
+        </button>
+      </div>
+
+      <!-- Success -->
+      <div class="success-container" id="successContainer">
+        <div class="success-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+        <h2 class="success-title">Token Created!</h2>
+        <p class="success-subtitle">Your artwork is now live on Pump.fun</p>
+        <a href="#" class="success-link" id="pumpLink" target="_blank">View on Pump.fun →</a>
+        <p class="success-mint" id="mintAddress"></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const previewImage = document.getElementById('previewImage');
+    const previewPlaceholder = document.getElementById('previewPlaceholder');
+    const previewTool = document.getElementById('previewTool');
+    const tokenName = document.getElementById('tokenName');
+    const tokenTicker = document.getElementById('tokenTicker');
+    const tokenDescription = document.getElementById('tokenDescription');
+    const tokenTwitter = document.getElementById('tokenTwitter');
+    const tokenizeBtn = document.getElementById('tokenizeBtn');
+    const errorMsg = document.getElementById('errorMsg');
+    const formContainer = document.getElementById('formContainer');
+    const successContainer = document.getElementById('successContainer');
+
+    // Drawing data loaded from server
+    let drawingId = null;
+    let drawingLoaded = false;
+
+    // Get drawing ID from URL
+    const params = new URLSearchParams(window.location.search);
+    const idFromUrl = params.get('id');
+
+    if (idFromUrl) {
+      // Load drawing from server
+      fetch('/api/drawings/' + idFromUrl)
+        .then(res => res.json())
+        .then(data => {
+          if (data.drawing) {
+            drawingId = data.drawing.id;
+            drawingLoaded = true;
+
+            previewImage.src = data.drawing.imageUrl;
+            previewImage.style.display = 'block';
+            previewPlaceholder.style.display = 'none';
+
+            if (data.drawing.tool) {
+              previewTool.textContent = data.drawing.tool;
+              previewTool.style.display = 'block';
+            }
+            validateForm();
+          } else {
+            previewPlaceholder.textContent = 'Drawing not found';
+          }
+        })
+        .catch(() => {
+          previewPlaceholder.textContent = 'Failed to load drawing';
+        });
+    } else {
+      previewPlaceholder.textContent = 'No drawing selected';
+    }
+
+    // Character counters
+    tokenName.addEventListener('input', () => {
+      document.getElementById('nameCount').textContent = tokenName.value.length;
+      validateForm();
+    });
+
+    tokenTicker.addEventListener('input', () => {
+      tokenTicker.value = tokenTicker.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      validateForm();
+    });
+
+    tokenDescription.addEventListener('input', () => {
+      document.getElementById('descCount').textContent = tokenDescription.value.length;
+    });
+
+    function validateForm() {
+      const nameValid = tokenName.value.trim().length >= 1;
+      const tickerValid = tokenTicker.value.trim().length >= 2;
+      tokenizeBtn.disabled = !(nameValid && tickerValid && drawingLoaded);
+    }
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.classList.add('visible');
+      setTimeout(() => errorMsg.classList.remove('visible'), 5000);
+    }
+
+    // Tokenize
+    tokenizeBtn.addEventListener('click', async () => {
+      if (tokenizeBtn.disabled || !drawingId) return;
+
+      tokenizeBtn.classList.add('loading');
+      tokenizeBtn.disabled = true;
+      errorMsg.classList.remove('visible');
+
+      try {
+        const tokenRes = await fetch('/api/tokenize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            drawingId: drawingId,
+            name: tokenName.value.trim(),
+            ticker: tokenTicker.value.trim(),
+            description: tokenDescription.value.trim(),
+            twitter: tokenTwitter.value.trim()
+          })
+        });
+
+        const tokenData = await tokenRes.json();
+        if (!tokenRes.ok) throw new Error(tokenData.error || 'Tokenization failed');
+
+        // Success!
+        formContainer.style.display = 'none';
+        successContainer.classList.add('visible');
+        document.getElementById('pumpLink').href = tokenData.pumpUrl;
+        document.getElementById('mintAddress').textContent = 'Mint: ' + tokenData.mintAddress;
+
+      } catch (error) {
+        console.error('Tokenization error:', error);
+        showError(error.message);
+        tokenizeBtn.classList.remove('loading');
+        tokenizeBtn.disabled = false;
+      }
+    });
+
+    // Init
+    validateForm();
+  </script>
+</body>
+</html>
+

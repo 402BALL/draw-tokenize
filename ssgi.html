@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/jpeg" href="favicon.jpeg">
+  <title>SSGI+SSR — Draw&Tokenize</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.webgpu.js",
+      "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.webgpu.js",
+      "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.tsl.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/"
+    }
+  }
+  </script>
+  <style>
+    body {
+      background-color: #e0e0e0;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    }
+
+    /* Back button */
+    .back-btn {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 1rem;
+      background: rgba(40, 40, 40, 0.85);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 2rem;
+      color: #ccc;
+      font-family: monospace;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1), box-shadow 0.3s ease;
+    }
+    .back-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      color: #fff;
+    }
+    .back-btn:active {
+      transform: scale(0.95);
+    }
+    .back-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+    .tokenize-btn {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 10000;
+      padding: 0.7rem 1.4rem;
+      background: #fff;
+      color: #1a1a1a;
+      font-family: monospace;
+      font-size: 14px;
+      font-weight: 700;
+      border: none;
+      border-radius: 2rem;
+      cursor: pointer;
+      transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1), box-shadow 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tokenize-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(255,255,255,0.15);
+    }
+    .tokenize-btn:active {
+      transform: scale(0.95);
+    }
+  </style>
+</head>
+<body>
+
+  <button class="tokenize-btn" onclick="window._goTokenize()">Tokenize</button>
+
+  <!-- Back button -->
+  <a href="gallery.html" class="back-btn">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 12H5"></path>
+      <path d="M12 19l-7-7 7-7"></path>
+    </svg>
+    Back
+  </a>
+
+  <div id="ui" style="position: absolute; bottom: 20px; left: 20px; color: #888; font-family: monospace; font-size: 12px; user-select: none; pointer-events: auto; line-height: 20px;">
+    <div style="margin-bottom: 10px; cursor: pointer;" id="modeToggle">
+      <span style="opacity: 0.7;">Mode:</span> <span id="mode">Draw</span>
+    </div>
+    <div style="margin-bottom: 10px;">
+      <span style="opacity: 0.7;">Roughness:</span> <input type="range" id="roughnessSlider" min="0" max="1" step="0.01" value="0" style="width: 100px; vertical-align: middle; cursor: pointer;"> <span id="roughness">0.00</span>
+    </div>
+    <div style="margin-bottom: 10px;">
+      <span style="opacity: 0.7;">Metalness:</span> <input type="range" id="metalnessSlider" min="0" max="1" step="0.01" value="0.25" style="width: 100px; vertical-align: middle; cursor: pointer;"> <span id="metalness">0.25</span>
+    </div>
+    <div style="margin-bottom: 10px; cursor: pointer;" id="downloadGLB">
+      <span style="opacity: 0.7;">Download GLB</span>
+    </div>
+    <div style="cursor: pointer;" id="savePNG">
+      <span style="opacity: 0.7;">Save PNG</span>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three/webgpu';
+    import { pass, mrt, output, normalView, metalness, roughness, diffuseColor, velocity, vec2, vec4, add, directionToColor, colorToDirection, sample, blendColor } from 'three/tsl';
+    import { ssgi } from 'three/addons/tsl/display/SSGINode.js';
+    import { ssr } from 'three/addons/tsl/display/SSRNode.js';
+    import { traa } from 'three/addons/tsl/display/TRAANode.js';
+
+    import { TubePainter } from 'three/addons/misc/TubePainter.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+
+    let camera, scene, renderer, postProcessing, controls, painter;
+    let isDrawing = false, drawMode = true;
+    let lastPosition = new THREE.Vector3();
+    let lastTime = 0;
+    let currentSize = 1;
+
+    const pointer = new THREE.Vector2();
+    const raycaster = new THREE.Raycaster();
+    const wallPlane = new THREE.Plane( new THREE.Vector3( 0, 0, 1 ), - 0.25 );
+    const intersectionPoint = new THREE.Vector3();
+    const easedPosition = new THREE.Vector3();
+    const currentColor = new THREE.Color();
+
+    const CANVAS_SIZE = 1000;
+
+    function getPointerCoords( clientX, clientY ) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ( ( clientX - rect.left ) / rect.width ) * 2 - 1;
+      pointer.y = - ( ( clientY - rect.top ) / rect.height ) * 2 + 1;
+    }
+
+    init();
+
+    async function init() {
+
+      camera = new THREE.PerspectiveCamera( 40, 1, 0.1, 100 );
+      camera.position.set( 0, 0, 5 );
+      camera.lookAt( 0, 0, 0 );
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color( 0x222222 );
+
+      renderer = new THREE.WebGPURenderer( {
+        requiredLimits: {
+          maxColorAttachmentBytesPerSample: 40
+        }
+      } );
+      renderer.setSize( CANVAS_SIZE, CANVAS_SIZE );
+      renderer.setAnimationLoop( animate );
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.5;
+      renderer.domElement.style.cursor = 'crosshair';
+      document.body.appendChild( renderer.domElement );
+
+      await renderer.init();
+
+      const environment = new RoomEnvironment();
+      const pmremGenerator = new THREE.PMREMGenerator( renderer );
+      scene.environment = pmremGenerator.fromScene( environment ).texture;
+      pmremGenerator.dispose();
+
+      controls = new OrbitControls( camera, renderer.domElement );
+      controls.enabled = false;
+      controls.update();
+
+      postProcessing = new THREE.PostProcessing( renderer );
+
+      const scenePass = pass( scene, camera );
+      scenePass.setMRT( mrt( {
+        output: output,
+        diffuseColor: diffuseColor,
+        normal: directionToColor( normalView ),
+        metalrough: vec2( metalness, roughness ),
+        velocity: velocity
+      } ) );
+
+      const scenePassColor = scenePass.getTextureNode( 'output' );
+      const scenePassDiffuse = scenePass.getTextureNode( 'diffuseColor' );
+      const scenePassDepth = scenePass.getTextureNode( 'depth' );
+      const scenePassNormal = scenePass.getTextureNode( 'normal' );
+      const scenePassMetalRough = scenePass.getTextureNode( 'metalrough' );
+      const scenePassVelocity = scenePass.getTextureNode( 'velocity' );
+
+      const diffuseTexture = scenePass.getTexture( 'diffuseColor' );
+      diffuseTexture.type = THREE.UnsignedByteType;
+
+      const normalTexture = scenePass.getTexture( 'normal' );
+      normalTexture.type = THREE.UnsignedByteType;
+
+      const metalRoughTexture = scenePass.getTexture( 'metalrough' );
+      metalRoughTexture.type = THREE.UnsignedByteType;
+
+      const sceneNormal = sample( ( uv ) => colorToDirection( scenePassNormal.sample( uv ) ) );
+
+      // ssgi
+      const giPass = ssgi( scenePassColor, scenePassDepth, sceneNormal, camera );
+      giPass.sliceCount.value = 2;
+      giPass.stepCount.value = 8;
+      giPass.aoIntensity.value = 1;
+
+      // ssr
+      const ssrPass = ssr( scenePassColor, scenePassDepth, sceneNormal, scenePassMetalRough.r, scenePassMetalRough.g, camera );
+
+      // composite
+      const gi = giPass.rgb;
+      const ao = giPass.a;
+
+      const sceneWithGI = vec4( add( scenePassColor.rgb.mul( ao ), scenePassDiffuse.rgb.mul( gi ) ), scenePassColor.a );
+      const composite = blendColor( sceneWithGI, ssrPass );
+
+      postProcessing.outputNode = traa( composite, scenePassDepth, scenePassVelocity, camera );
+
+      // scene
+      const wall = new THREE.Mesh(
+        new THREE.PlaneGeometry( 10, 10 ),
+        new THREE.MeshPhysicalMaterial( { color: 0xffffff, roughness: 0.3, metalness: 0 } )
+      );
+      scene.add( wall );
+
+      painter = new TubePainter();
+      painter.mesh.material.roughness = 0;
+      painter.mesh.material.metalness = 0.25;
+      scene.add( painter.mesh );
+
+      window.addEventListener( 'resize', onWindowResize );
+      window.addEventListener( 'pointerdown', onPointerDown );
+      window.addEventListener( 'pointermove', onPointerMove );
+      window.addEventListener( 'pointerup', onPointerUp );
+
+      document.getElementById( 'modeToggle' ).addEventListener( 'click', () => {
+        drawMode = ! drawMode;
+        controls.enabled = ! drawMode;
+        document.getElementById( 'mode' ).textContent = drawMode ? 'Draw' : 'Orbit';
+      } );
+
+      document.getElementById( 'roughnessSlider' ).addEventListener( 'input', ( e ) => {
+        painter.mesh.material.roughness = parseFloat( e.target.value );
+        document.getElementById( 'roughness' ).textContent = e.target.value;
+      } );
+
+      document.getElementById( 'metalnessSlider' ).addEventListener( 'input', ( e ) => {
+        painter.mesh.material.metalness = parseFloat( e.target.value );
+        document.getElementById( 'metalness' ).textContent = e.target.value;
+      } );
+
+      document.getElementById( 'downloadGLB' ).addEventListener( 'click', () => {
+        const geometry = painter.mesh.geometry;
+        const drawCount = geometry.drawRange.count;
+
+        if ( drawCount === 0 ) return alert( 'Draw something first!' );
+
+        const exportGeometry = new THREE.BufferGeometry();
+        exportGeometry.setAttribute( 'position', new THREE.BufferAttribute( geometry.attributes.position.array.slice( 0, drawCount * 3 ), 3 ) );
+        exportGeometry.setAttribute( 'normal', new THREE.BufferAttribute( geometry.attributes.normal.array.slice( 0, drawCount * 3 ), 3 ) );
+        exportGeometry.setAttribute( 'color', new THREE.BufferAttribute( geometry.attributes.color.array.slice( 0, drawCount * 3 ), 3 ) );
+
+        const exportMesh = new THREE.Mesh( exportGeometry, new THREE.MeshStandardMaterial( {
+          vertexColors: true,
+          roughness: painter.mesh.material.roughness,
+          metalness: painter.mesh.material.metalness
+        } ) );
+
+        const exporter = new GLTFExporter();
+        exporter.parse( exportMesh, ( result ) => {
+          const blob = new Blob( [ result ], { type: 'application/octet-stream' } );
+          const link = document.createElement( 'a' );
+          link.href = URL.createObjectURL( blob );
+          link.download = 'tube.glb';
+          link.click();
+        }, ( error ) => {
+          console.error( 'An error happened during export', error );
+        }, { binary: true } );
+      } );
+
+      // Save PNG
+      document.getElementById( 'savePNG' ).addEventListener( 'click', () => {
+        renderer.render( scene, camera );
+        const canvas = renderer.domElement;
+
+        canvas.toBlob( ( blob ) => {
+          const dataURL = URL.createObjectURL( blob );
+
+          // Store for future logging
+          window.lastSavedSSGI = {
+            timestamp: new Date().toISOString(),
+            width: canvas.width,
+            height: canvas.height
+          };
+
+          const link = document.createElement( 'a' );
+          link.download = 'ssgi_drawing_' + Date.now() + '.png';
+          link.href = dataURL;
+          link.click();
+          URL.revokeObjectURL( dataURL );
+        }, 'image/png' );
+      } );
+    }
+
+    function onWindowResize() {
+      // Fixed 1000x1000 canvas, no resize needed
+    }
+
+    function onPointerDown( event ) {
+      if ( ! drawMode || event.target.closest( '#ui' ) || event.target.closest( '.back-btn' ) ) return;
+
+      getPointerCoords( event.clientX, event.clientY );
+      raycaster.setFromCamera( pointer, camera );
+      raycaster.ray.intersectPlane( wallPlane, intersectionPoint );
+
+      currentSize = 1;
+      painter.moveTo( intersectionPoint );
+      lastPosition.copy( intersectionPoint );
+      lastTime = event.timeStamp;
+      isDrawing = true;
+    }
+
+    function onPointerMove( event ) {
+      if ( ! drawMode || ! isDrawing ) return;
+
+      getPointerCoords( event.clientX, event.clientY );
+      raycaster.setFromCamera( pointer, camera );
+      raycaster.ray.intersectPlane( wallPlane, intersectionPoint );
+
+      const distance = intersectionPoint.distanceTo( lastPosition );
+      const timeDelta = event.timeStamp - lastTime;
+      const speed = timeDelta > 0 ? distance / timeDelta : 0;
+      const targetSize = Math.min( 15, Math.max( 1, speed * 1000 ) );
+
+      currentSize += ( targetSize - currentSize ) * 0.3;
+
+      easedPosition.lerpVectors( lastPosition, intersectionPoint, 0.7 );
+
+      currentColor.setHSL( ( event.timeStamp * 0.001 ) % 1, 1, 0.5 );
+      painter.setColor( currentColor );
+      painter.setSize( currentSize );
+      painter.lineTo( easedPosition );
+
+      lastPosition.copy( easedPosition );
+      lastTime = event.timeStamp;
+
+      painter.update();
+    }
+
+    function onPointerUp() {
+      isDrawing = false;
+    }
+
+    function animate() {
+      controls.update();
+      postProcessing.render();
+    }
+
+    // Tokenize function exposed to global scope
+    window._goTokenize = function() {
+      var btn = document.querySelector('.tokenize-btn');
+      btn.textContent = 'Saving...';
+      btn.disabled = true;
+
+      var c = renderer.domElement;
+      if (!c) { btn.textContent = 'Tokenize'; btn.disabled = false; return alert('No canvas found'); }
+
+      // Render one frame to capture the latest state
+      postProcessing.render();
+      var imageData = c.toDataURL('image/png');
+
+      fetch('/api/drawings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageData: imageData, tool: 'SSGI 3D' })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.success && data.drawing) {
+          window.location.href = 'tokenize.html?id=' + data.drawing.id;
+        } else {
+          throw new Error(data.error || 'Failed to save');
+        }
+      })
+      .catch(function(err) {
+        alert('Error: ' + err.message);
+        btn.textContent = 'Tokenize';
+        btn.disabled = false;
+      });
+    };
+  </script>
+</body>
+</html>
+

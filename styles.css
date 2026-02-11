@@ -1,0 +1,166 @@
+/* Reset & base */
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  margin: 0;
+}
+
+:root {
+  --bg: #f0f0f0;
+  --fg: #0b0b0b;
+  --perspective: 1800px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Stage */
+.stage {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+  overflow: hidden;
+  perspective: var(--perspective);
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Loader overlay */
+.loader {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: #ffffff;
+  transition: opacity 0.2s var(--ease), visibility 0.2s linear;
+}
+.loader--hide {
+  opacity: 0;
+  visibility: hidden;
+}
+.loader__content {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  min-width: 220px;
+}
+.loader__ring {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid #ddd;
+  border-top-color: #333;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Background canvas (moving gradient) */
+#bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: blur(24px) saturate(1.05);
+  pointer-events: none;
+}
+
+/* Only block native scrolling/gestures in carousel mode */
+.stage.carousel-mode {
+  touch-action: none;
+  cursor: grab;
+}
+.stage.carousel-mode.dragging {
+  cursor: grabbing;
+}
+
+/* Cards container */
+.cards {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  transform-style: preserve-3d;
+}
+
+/* Card */
+.card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(34vw, 480px);
+  aspect-ratio: 3/4;
+  isolation: isolate;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  will-change: transform, filter;
+  transform-origin: center center;
+  contain: layout paint; /* reduce layout/paint scope for perf */
+}
+
+.card__img {
+  border-radius: 15px;
+  opacity: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transform: translateZ(0);
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+  transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.card.card--clickable {
+  cursor: pointer;
+  contain: none;
+  overflow: hidden;
+  border-radius: 15px;
+}
+
+.card__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 15px;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+
+.card__overlay-text {
+  color: #fff;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1.4rem;
+  border: 2px solid rgba(255,255,255,0.8);
+  border-radius: 2rem;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none !important;
+    animation: none !important;
+  }
+}

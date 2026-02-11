@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/jpeg" href="favicon.jpeg">
+  <title>How It Works</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/splitting/dist/splitting.css" />
+  <link rel="stylesheet" href="https://unpkg.com/splitting/dist/splitting-cells.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.171.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.171.0/examples/jsm/",
+      "three-text": "https://cdn.jsdelivr.net/npm/three-text/dist/index.js",
+      "three-text/three": "https://cdn.jsdelivr.net/npm/three-text/dist/three/index.js"
+    }
+  }
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #f5f0eb;
+      color: #1a1a1a;
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* Loader */
+    .loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background-color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+    }
+    .loader.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .loader .headline--jump {
+      align-items: center;
+      display: flex;
+      font-family: 'Lexend Deca', sans-serif;
+      font-weight: 700;
+      font-size: calc(1rem + 15vmin);
+      justify-content: center;
+      overflow: hidden;
+      perspective: 1000px;
+      color: #1a1a1a;
+      margin: 0;
+    }
+    .loader .headline--jump .char {
+      animation-delay: calc(var(--char-index) * 0.075s);
+      animation-direction: normal;
+      animation-duration: 800ms;
+      animation-iteration-count: infinite;
+      animation-name: jump;
+      animation-timing-function: cubic-bezier(0.165, 0.44, 0.64, 1);
+      animation-fill-mode: forwards;
+      display: inline-block;
+      position: relative;
+      transform-origin: 50% 100%;
+      z-index: 1;
+    }
+    @keyframes jump {
+      20% { transform: translateY(2%) scaleY(0.9); }
+      40% { transform: translateY(-100%) scaleY(1.2); }
+      50% { transform: translateY(10%) scaleY(0.8); }
+      70% { transform: translateY(-5%) scaleY(1); }
+      80%, 100% { transform: translateY(0) scaleY(1); }
+    }
+
+    .back-button {
+      position: fixed;
+      top: 24px;
+      left: 24px;
+      color: #888;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      z-index: 100;
+      transition: color 0.3s ease;
+      letter-spacing: 0.02em;
+    }
+    .back-button:hover { color: #1a1a1a; }
+
+    #three-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      cursor: grab;
+    }
+    #three-canvas:active { cursor: grabbing; }
+
+    .top-info {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 100;
+      text-align: right;
+    }
+    .top-info span {
+      font-size: 11px;
+      font-weight: 500;
+      color: #aaa;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loader -->
+  <div class="loader" id="loader">
+    <h2 data-splitting class="headline headline--jump">Draw</h2>
+  </div>
+
+  <a href="index.html" class="back-button">Back</a>
+
+  <div class="top-info">
+    <span>Scroll to zoom / Drag to rotate</span>
+  </div>
+
+  <canvas id="three-canvas"></canvas>
+
+  <script src="https://unpkg.com/splitting/dist/splitting.min.js"></script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+    // Loader
+    Splitting();
+    setTimeout(() => {
+      document.getElementById('loader').classList.add('hidden');
+    }, 2000);
+
+    // Three.js setup
+    const canvas = document.getElementById('three-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf5f0eb);
+
+    const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(0, 0, 28);
+
+    // Environment
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const environment = new RoomEnvironment();
+    scene.environment = pmremGenerator.fromScene(environment).texture;
+    pmremGenerator.dispose();
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    dirLight.position.set(5, 10, 7);
+    scene.add(dirLight);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    scene.add(ambientLight);
+
+    // Controls
+    const controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.enablePan = true;
+    controls.minDistance = 5;
+    controls.maxDistance = 60;
+    controls.target.set(0, 0, 0);
+    controls.update();
+
+    // Materials
+    const titleMat = new THREE.MeshPhysicalMaterial({
+      color: 0x444444,
+      roughness: 0.2,
+      metalness: 0.05,
+      clearcoat: 0.3,
+    });
+
+    const stepNumberMat = new THREE.MeshPhysicalMaterial({
+      color: 0x4a9eed,
+      roughness: 0.15,
+      metalness: 0.1,
+      clearcoat: 0.5,
+    });
+
+    const stepTitleMat = new THREE.MeshPhysicalMaterial({
+      color: 0x333333,
+      roughness: 0.25,
+      metalness: 0.05,
+      clearcoat: 0.2,
+    });
+
+    const stepDescMat = new THREE.MeshPhysicalMaterial({
+      color: 0x888888,
+      roughness: 0.35,
+      metalness: 0.0,
+    });
+
+    const arrowMat = new THREE.MeshPhysicalMaterial({
+      color: 0x4a9eed,
+      roughness: 0.2,
+      metalness: 0.15,
+      clearcoat: 0.4,
+    });
+
+    // Schema data
+    const steps = [
+      {
+        number: '01',
+        title: 'Draw',
+        lines: [
+          'Choose your tool:',
+          'Fluid Paint,',
+          'Pencil Sketch,',
+          'or 3D SSGI',
+          '',
+          'Create your artwork',
+          'on a 1000x1000 canvas',
+        ]
+      },
+      {
+        number: '02',
+        title: 'Tokenize',
+        lines: [
+          'Click the Tokenize',
+          'button when ready',
+          '',
+          'Fill in token name,',
+          'ticker, description',
+          'and your Twitter link',
+        ]
+      },
+      {
+        number: '03',
+        title: 'Trade',
+        lines: [
+          'Your art becomes a',
+          'token on Pump.fun',
+          '',
+          'It appears in the',
+          'Fashion Gallery for',
+          'everyone to see',
+        ]
+      },
+      {
+        number: '04',
+        title: 'Gallery',
+        lines: [
+          'All tokenized artworks',
+          'are displayed in the',
+          'Fashion Gallery',
+          '',
+          'Browse, zoom in and',
+          'explore art from',
+          'all artists',
+        ]
+      }
+    ];
+
+    async function createSchema() {
+      const { FontLoader } = await import('three/addons/loaders/FontLoader.js');
+      const { TextGeometry } = await import('three/addons/geometries/TextGeometry.js');
+
+      const loader = new FontLoader();
+
+      // Load bold font for titles/numbers
+      const boldFont = await new Promise((resolve) => {
+        loader.load('https://cdn.jsdelivr.net/npm/three@0.171.0/examples/fonts/helvetiker_bold.typeface.json', resolve);
+      });
+
+      // Load regular font for descriptions
+      const regularFont = await new Promise((resolve) => {
+        loader.load('https://cdn.jsdelivr.net/npm/three@0.171.0/examples/fonts/helvetiker_regular.typeface.json', resolve);
+      });
+
+      const mainGroup = new THREE.Group();
+
+      // Page title "How it works"
+      const titleGeo = new TextGeometry('How it works', {
+        font: boldFont,
+        size: 0.65,
+        depth: 0.12,
+        curveSegments: 10,
+        bevelEnabled: true,
+        bevelThickness: 0.015,
+        bevelSize: 0.008,
+        bevelSegments: 4,
+      });
+      titleGeo.computeBoundingBox();
+      const titleWidth = titleGeo.boundingBox.max.x - titleGeo.boundingBox.min.x;
+      const titleMesh = new THREE.Mesh(titleGeo, titleMat);
+      titleMesh.position.set(-titleWidth / 2, 4.5, 0);
+      mainGroup.add(titleMesh);
+
+      // Column spacing (4 columns)
+      const colWidth = 5.0;
+      const startX = -colWidth * 1.5;
+      const topY = 3.2;
+
+      steps.forEach((step, colIdx) => {
+        const cx = startX + colIdx * colWidth;
+
+        // Step number (big, blue)
+        const numGeo = new TextGeometry(step.number, {
+          font: boldFont,
+          size: 0.9,
+          depth: 0.18,
+          curveSegments: 10,
+          bevelEnabled: true,
+          bevelThickness: 0.02,
+          bevelSize: 0.01,
+          bevelSegments: 4,
+        });
+        numGeo.computeBoundingBox();
+        const numWidth = numGeo.boundingBox.max.x - numGeo.boundingBox.min.x;
+        const numMesh = new THREE.Mesh(numGeo, stepNumberMat);
+        numMesh.position.set(cx - numWidth / 2, topY, 0);
+        mainGroup.add(numMesh);
+
+        // Step title
+        const sTitleGeo = new TextGeometry(step.title, {
+          font: boldFont,
+          size: 0.42,
+          depth: 0.1,
+          curveSegments: 8,
+          bevelEnabled: true,
+          bevelThickness: 0.012,
+          bevelSize: 0.006,
+          bevelSegments: 3,
+        });
+        sTitleGeo.computeBoundingBox();
+        const sTitleWidth = sTitleGeo.boundingBox.max.x - sTitleGeo.boundingBox.min.x;
+        const sTitleMesh = new THREE.Mesh(sTitleGeo, stepTitleMat);
+        sTitleMesh.position.set(cx - sTitleWidth / 2, topY - 1.2, 0);
+        mainGroup.add(sTitleMesh);
+
+        // Description lines
+        step.lines.forEach((line, lineIdx) => {
+          if (line === '') return;
+          try {
+            const lineGeo = new TextGeometry(line, {
+              font: regularFont,
+              size: 0.22,
+              depth: 0.04,
+              curveSegments: 6,
+              bevelEnabled: true,
+              bevelThickness: 0.005,
+              bevelSize: 0.003,
+              bevelSegments: 2,
+            });
+            lineGeo.computeBoundingBox();
+            const lineWidth = lineGeo.boundingBox.max.x - lineGeo.boundingBox.min.x;
+            const lineMesh = new THREE.Mesh(lineGeo, stepDescMat);
+            lineMesh.position.set(cx - lineWidth / 2, topY - 2.0 - lineIdx * 0.4, 0);
+            mainGroup.add(lineMesh);
+          } catch (e) {
+            // skip
+          }
+        });
+
+        // Arrow between columns
+        if (colIdx < steps.length - 1) {
+          const arrowX = cx + colWidth / 2;
+          const arrowY = topY - 0.3;
+
+          // Arrow shaft
+          const shaftGeo = new THREE.BoxGeometry(1.2, 0.08, 0.08);
+          const shaft = new THREE.Mesh(shaftGeo, arrowMat);
+          shaft.position.set(arrowX, arrowY, 0);
+          mainGroup.add(shaft);
+
+          // Arrow head (cone rotated to point right)
+          const headGeo = new THREE.ConeGeometry(0.15, 0.35, 8);
+          const head = new THREE.Mesh(headGeo, arrowMat);
+          head.rotation.z = -Math.PI / 2;
+          head.position.set(arrowX + 0.75, arrowY, 0);
+          mainGroup.add(head);
+        }
+      });
+
+      // Decorative base line
+      const lineGeo = new THREE.BoxGeometry(18, 0.03, 0.03);
+      const lineMat = new THREE.MeshPhysicalMaterial({ color: 0xcccccc, roughness: 0.5 });
+      const baseLine = new THREE.Mesh(lineGeo, lineMat);
+      baseLine.position.set(0, topY - 5.5, 0);
+      mainGroup.add(baseLine);
+
+      scene.add(mainGroup);
+    }
+
+    // Animation
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    createSchema();
+    animate();
+
+    // Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+
+</body>
+</html>
+

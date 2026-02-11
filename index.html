@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/jpeg" href="favicon.jpeg">
+  <title>Project Draw</title>
+  <link rel="stylesheet" href="https://unpkg.com/splitting/dist/splitting.css" />
+  <link rel="stylesheet" href="https://unpkg.com/splitting/dist/splitting-cells.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-black: #ffffff;
+      --color-light: #1a1a1a;
+      --color-dark: #ffffff;
+      --color-neutral-900: #ffffff;
+      --container-padding: 2em;
+      --cubic-default: cubic-bezier(0.19, 1, 0.22, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: var(--color-black);
+      color: var(--color-light);
+      font-size: 1vw;
+      cursor: url("https://cdn.prod.website-files.com/6708f85ff3d3cba6aff436fb/671251b239d7aeb290a31ac5_cursor-default%402x.svg")
+          2 0,
+        auto;
+    }
+
+    a,
+    button {
+      cursor: url("https://cdn.prod.website-files.com/6708f85ff3d3cba6aff436fb/671251b212e6b71494aa67ff_cursor-pointer%402x.svg")
+          12 0,
+        pointer;
+    }
+
+    .cloneable {
+      padding: var(--container-padding);
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      display: flex;
+      position: relative;
+      font-size: 1.1vw;
+    }
+
+    .overlay {
+      z-index: 2;
+      background-image: linear-gradient(90deg, var(--color-neutral-900) 85%, #0000);
+      justify-content: flex-start;
+      align-items: center;
+      width: 37.5em;
+      height: 100%;
+      padding-left: 2em;
+      display: flex;
+      position: absolute;
+      inset: 0% auto 0% 0%;
+    }
+
+    .overlay-inner {
+      flex-flow: column;
+      justify-content: space-between;
+      align-items: flex-start;
+      height: 28.125em;
+      display: flex;
+    }
+
+    .overlay-count-row {
+      grid-column-gap: .2em;
+      grid-row-gap: .2em;
+      flex-flow: row;
+      justify-content: flex-start;
+      align-items: center;
+      font-family: PP Neue Corp, Impact, sans-serif;
+      font-size: 5.625em;
+      font-weight: 700;
+      display: flex;
+    }
+
+    .count-column {
+      height: 1em;
+      overflow: hidden;
+    }
+
+    .count-heading {
+      width: 2ch;
+      font-size: 1em;
+      line-height: 1;
+      margin: 0px;
+    }
+
+    .count-row-divider {
+      background-color: var(--color-light);
+      width: 2px;
+      height: .75em;
+      transform: rotate(15deg);
+    }
+
+    .overlay-nav-row {
+      grid-column-gap: 2em;
+      grid-row-gap: 2em;
+      display: flex;
+    }
+
+    .button {
+      background-color: #0000;
+      color: #1a1a1a;
+      border: 1px solid #1a1a1a33;
+      border-radius: .4em;
+      justify-content: center;
+      align-items: center;
+      width: 4em;
+      height: 4em;
+      padding: 0;
+      display: flex;
+      position: relative;
+      font-size: inherit;
+    }
+
+    .button-arrow {
+      flex: none;
+      width: 1em;
+      height: .75em;
+    }
+
+    .button-arrow.next {
+      transform: rotate(180deg);
+    }
+
+    .button-overlay {
+      z-index: 2;
+      position: absolute;
+      inset: -1px;
+    }
+
+    .overlay-corner {
+      border-top: 1px solid var(--color-light);
+      border-left: 1px solid var(--color-light);
+      border-top-left-radius: .4em;
+      width: 1em;
+      height: 1em;
+    }
+
+    .overlay-corner.top-right {
+      position: absolute;
+      inset: 0% 0% auto auto;
+      transform: rotate(90deg);
+    }
+
+    .overlay-corner.bottom-left {
+      position: absolute;
+      inset: auto auto 0% 0%;
+      transform: rotate(-90deg);
+    }
+
+    .overlay-corner.bottom-right {
+      position: absolute;
+      inset: auto 0% 0% auto;
+      transform: rotate(180deg);
+    }
+
+    .button, .button-overlay {
+      transition: transform 0.475s var(--cubic-default), opacity 0.475s var(--cubic-default);
+    }
+
+    .button:hover .button-overlay {
+      transform: scale(1.4);
+    }
+
+    .overlay-nav-row:hover:has(.button:hover) .button {
+      opacity: 0.4;
+    }
+
+    .button:hover {
+      transform: scale(0.85);
+      opacity: 1 !important;
+    }
+
+    .main {
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      inset: 0%;
+      overflow: hidden;
+    }
+
+    .slider-wrap {
+      justify-content: flex-start;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+      display: flex;
+    }
+
+    .slider-list {
+      flex-flow: row;
+      justify-content: flex-start;
+      align-items: stretch;
+      display: flex;
+      position: relative;
+    }
+
+    .slider-slide {
+      flex: none;
+      width: 42.5em;
+      height: 28em;
+      padding-left: 1.25em;
+      padding-right: 1.25em;
+      transition: opacity .4s;
+      position: relative;
+    }
+
+    [data-slider="slide"] {
+      opacity: 0.2;
+    }
+
+    [data-slider="slide"].active {
+      opacity: 1;
+    }
+
+    [data-slider="slide"].active .slide-caption {
+      transition-delay: 0.3s;
+    }
+
+    .slide-inner {
+      border-radius: .5em;
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .slide-caption {
+      z-index: 2;
+      grid-column-gap: .4em;
+      grid-row-gap: .4em;
+      background-color: #1a1a1a;
+      color: #ffffff;
+      white-space: nowrap;
+      border-radius: .25em;
+      justify-content: flex-start;
+      align-items: center;
+      padding: .4em .75em .4em .5em;
+      display: flex;
+      position: absolute;
+      top: 1.25em;
+      left: 1.25em;
+      overflow: hidden;
+    }
+
+    .caption-dot {
+      background-color: #ffffff;
+      border-radius: 10em;
+      flex: none;
+      width: .5em;
+      height: .5em;
+    }
+
+    .caption {
+      font-size: .75em;
+      font-family: arial;
+      margin: 0px;
+    }
+
+    .slide-caption {
+      transition: transform 0.525s var(--cubic-default), opacity 0.525s var(--cubic-default);
+      transition-delay: 0s;
+    }
+
+    .slide-caption {
+      opacity: 0;
+      transform: translate(-25%, 0px);
+    }
+
+    [data-slider="slide"].active .slide-caption {
+      opacity: 1;
+      transform: translate(0%, 0px);
+    }
+
+    @font-face {
+      font-family: 'PP Neue Corp';
+      src: url('https://cdn.prod.website-files.com/6717aac16c9ea22eeef1e79e/6717de2d56e40b921572d2d9_PPNeueCorp-TightUltrabold.woff2') format('woff2');
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    .osmo-credits {
+      z-index: 999;
+      pointer-events: none;
+      flex-flow: column;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      height: 4em;
+      padding: 1em;
+      display: flex;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+    }
+
+    .osmo-credits__p {
+      pointer-events: auto;
+      color: #1a1a1a80;
+      text-align: center;
+      margin: 0;
+      font-family: PP Neue Montreal, Arial, sans-serif;
+      font-size: 1.125em;
+      font-weight: 500;
+      line-height: 1.3;
+    }
+
+    .osmo-credits__p-a {
+      color: #1a1a1a;
+    }
+
+    @font-face {
+      font-family: 'PP Neue Montreal';
+      src: url('https://cdn.prod.website-files.com/6819ed8312518f61b84824df/6819ed8312518f61b84825ba_PPNeueMontreal-Medium.woff2') format('woff2');
+      font-weight: 500;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    /* ===== SLIDE LINK ===== */
+    .slide-link {
+      display: block;
+      text-decoration: none;
+      transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+    }
+
+    .slide-link:hover {
+      transform: scale(1.05);
+    }
+
+    .slide-link:active {
+      transform: scale(0.95);
+    }
+
+    /* ===== LOADER ===== */
+    .loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background-color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+    }
+
+    .loader.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .loader .headline--jump {
+      align-items: center;
+      display: flex;
+      font-family: 'Lexend Deca', sans-serif;
+      font-weight: 700;
+      font-size: calc(1rem + 15vmin);
+      justify-content: center;
+      overflow: hidden;
+      perspective: 1000px;
+      color: #1a1a1a;
+      margin: 0;
+    }
+
+    .loader .headline--jump .char {
+      animation-delay: calc(var(--char-index) * 0.075s);
+      animation-direction: normal;
+      animation-duration: 800ms;
+      animation-iteration-count: infinite;
+      animation-name: jump;
+      animation-timing-function: cubic-bezier(0.165, 0.44, 0.64, 1);
+      animation-fill-mode: forwards;
+      display: inline-block;
+      position: relative;
+      transform-origin: 50% 100%;
+      z-index: 1;
+    }
+
+    @keyframes jump {
+      20% {
+        transform: translateY(2%) scaleY(0.9);
+      }
+      40% {
+        transform: translateY(-100%) scaleY(1.2);
+      }
+      50% {
+        transform: translateY(10%) scaleY(0.8);
+      }
+      70% {
+        transform: translateY(-5%) scaleY(1);
+      }
+      80%, 100% {
+        transform: translateY(0) scaleY(1);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- LOADER -->
+  <div class="loader" id="loader">
+    <h2 data-splitting class="headline headline--jump">Draw</h2>
+  </div>
+
+  <section class="cloneable">
+    <div class="overlay">
+      <div class="overlay-inner">
+        <div class="overlay-count-row">
+          <div class="count-column">
+            <h2 data-slide-count="step" class="count-heading">01</h2>
+          </div>
+          <div class="count-row-divider"></div>
+          <div class="count-column">
+            <h2 data-slide-count="total" class="count-heading">06</h2>
+          </div>
+        </div>
+        <div class="overlay-nav-row">
+          <button aria-label="previous slide" data-slider="button-prev" class="button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 17 12" fill="none" class="button-arrow">
+              <path d="M6.28871 12L7.53907 10.9111L3.48697 6.77778H16.5V5.22222H3.48697L7.53907 1.08889L6.28871 0L0.5 6L6.28871 12Z" fill="currentColor"></path>
+            </svg>
+            <div class="button-overlay">
+              <div class="overlay-corner"></div>
+              <div class="overlay-corner top-right"></div>
+              <div class="overlay-corner bottom-left"></div>
+              <div class="overlay-corner bottom-right"></div>
+            </div>
+          </button>
+          <button aria-label="next slide" data-slider="button-next" class="button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 17 12" fill="none" class="button-arrow next">
+              <path d="M6.28871 12L7.53907 10.9111L3.48697 6.77778H16.5V5.22222H3.48697L7.53907 1.08889L6.28871 0L0.5 6L6.28871 12Z" fill="currentColor"></path>
+            </svg>
+            <div class="button-overlay">
+              <div class="overlay-corner"></div>
+              <div class="overlay-corner top-right"></div>
+              <div class="overlay-corner bottom-left"></div>
+              <div class="overlay-corner bottom-right"></div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="main">
+      <div class="slider-wrap">
+        <div data-slider="list" class="slider-list">
+          <div data-slider="slide" class="slider-slide">
+            <a href="https://pump.fun/coin/6oxd8AfYxokj9Wy9uWXm3TCyfgQsp1t1CziYN8FPpump" target="_blank" class="slide-inner slide-link">
+              <img src="6.jpeg" loading="lazy" sizes="(max-width: 479px) 100vw, 560px" alt="PumpFun">
+            </a>
+          </div>
+          <div data-slider="slide" class="slider-slide active">
+            <a href="gallery.html" class="slide-inner slide-link">
+              <img src="3.png" loading="lazy" sizes="(max-width: 479px) 100vw, 560px" alt="Draw&Tokenize">
+            </a>
+          </div>
+          <div data-slider="slide" class="slider-slide">
+            <a href="fashion.html" class="slide-inner slide-link">
+              <img src="4.png" loading="lazy" sizes="(max-width: 479px) 100vw, 560px" alt="Slide 4">
+            </a>
+          </div>
+          <div data-slider="slide" class="slider-slide">
+            <a href="about.html" class="slide-inner slide-link">
+              <img src="1.jpeg" loading="lazy" sizes="(max-width: 479px) 100vw, 560px" alt="About">
+            </a>
+          </div>
+          <div data-slider="slide" class="slider-slide">
+            <a href="howitworks.html" class="slide-inner slide-link">
+              <img src="2.jpeg" loading="lazy" sizes="(max-width: 479px) 100vw, 560px" alt="How it works">
+            </a>
+          </div>
+          <div data-slider="slide" class="slider-slide">
+            <a href="https://x.com/beribr_" target="_blank" class="slide-inner slide-link">
+              <img src="5.jpeg" loading="lazy" sizes="(max-width: 479px) 100vw, 560px" alt="Twitter">
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="osmo-credits">
+    <p class="osmo-credits__p">CA: 6oxd8AfYxokj9Wy9uWXm3TCyfgQsp1t1CziYN8FPpump</p>
+  </div>
+
+  <!-- Splitting.js -->
+  <script src="https://unpkg.com/splitting/dist/splitting.min.js"></script>
+
+  <!-- GSAP + Plugins -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+  <script src="https://assets.codepen.io/16327/InertiaPlugin.min.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", (event) => {
+
+      // Init Splitting.js for the loader text
+      Splitting();
+
+      // Hide loader after 2.5 seconds
+      setTimeout(() => {
+        document.getElementById('loader').classList.add('hidden');
+      }, 2500);
+
+      gsap.registerPlugin(Draggable, InertiaPlugin);
+
+      function initSlider() {
+
+        const wrapper = document.querySelector('[data-slider="list"]');
+        const slides = gsap.utils.toArray('[data-slider="slide"]');
+
+        const nextButton = document.querySelector('[data-slider="button-next"]');
+        const prevButton = document.querySelector('[data-slider="button-prev"]');
+
+        const totalElement = document.querySelector('[data-slide-count="total"]');
+        const stepElement = document.querySelector('[data-slide-count="step"]');
+        const stepsParent = stepElement.parentElement;
+
+        let activeElement;
+        const totalSlides = slides.length;
+
+        // Update total slides text, prepend 0 if less than 10
+        totalElement.textContent = totalSlides < 10 ? `0${totalSlides}` : totalSlides;
+
+        // Create step elements dynamically
+        stepsParent.innerHTML = ''; // Clear any existing steps
+        slides.forEach((_, index) => {
+          const stepClone = stepElement.cloneNode(true); // Clone the single step
+          stepClone.textContent = index + 1 < 10 ? `0${index + 1}` : index + 1;
+          stepsParent.appendChild(stepClone); // Append to the parent container
+        });
+
+        // Dynamically generated steps
+        const allSteps = stepsParent.querySelectorAll('[data-slide-count="step"]');
+
+        const loop = horizontalLoop(slides, {
+          paused: true,
+          draggable: true,
+          center: false,
+          onChange: (element, index) => {
+
+            // We add the active class to the 'next' element because our design is offset slightly.
+            activeElement && activeElement.classList.remove("active");
+            const nextSibling = element.nextElementSibling || slides[0];
+            nextSibling.classList.add("active");
+            activeElement = nextSibling;
+
+            // Move the number to the correct spot
+            gsap.to(allSteps, { y: `${-100 * index}%`, ease: "power3", duration: 0.45 });
+          }
+        });
+
+        // Similar to above, we substract 1 from our clicked index on click because our design is offset
+        slides.forEach((slide, i) => slide.addEventListener("click", () => loop.toIndex(i - 1, { ease: "power3", duration: 0.725 })));
+
+        nextButton.addEventListener("click", () => loop.next({ ease: "power3", duration: 0.725 }));
+        prevButton.addEventListener("click", () => loop.previous({ ease: "power3", duration: 0.725 }));
+
+      }
+
+      function horizontalLoop(items, config) {
+        let timeline;
+        items = gsap.utils.toArray(items);
+        config = config || {};
+        gsap.context(() => {
+          let onChange = config.onChange,
+            lastIndex = 0,
+            tl = gsap.timeline({
+              repeat: config.repeat, onUpdate: onChange && function () {
+                let i = tl.closestIndex();
+                if (lastIndex !== i) {
+                  lastIndex = i;
+                  onChange(items[i], i);
+                }
+              }, paused: config.paused, defaults: { ease: "none" }, onReverseComplete: () => tl.totalTime(tl.rawTime() + tl.duration() * 100)
+            }),
+            length = items.length,
+            startX = items[0].offsetLeft,
+            times = [],
+            widths = [],
+            spaceBefore = [],
+            xPercents = [],
+            curIndex = 0,
+            indexIsDirty = false,
+            center = config.center,
+            pixelsPerSecond = (config.speed || 1) * 100,
+            snap = config.snap === false ? v => v : gsap.utils.snap(config.snap || 1),
+            timeOffset = 0,
+            container = center === true ? items[0].parentNode : gsap.utils.toArray(center)[0] || items[0].parentNode,
+            totalWidth,
+            getTotalWidth = () => items[length - 1].offsetLeft + xPercents[length - 1] / 100 * widths[length - 1] - startX + spaceBefore[0] + items[length - 1].offsetWidth * gsap.getProperty(items[length - 1], "scaleX") + (parseFloat(config.paddingRight) || 0),
+            populateWidths = () => {
+              let b1 = container.getBoundingClientRect(), b2;
+              items.forEach((el, i) => {
+                widths[i] = parseFloat(gsap.getProperty(el, "width", "px"));
+                xPercents[i] = snap(parseFloat(gsap.getProperty(el, "x", "px")) / widths[i] * 100 + gsap.getProperty(el, "xPercent"));
+                b2 = el.getBoundingClientRect();
+                spaceBefore[i] = b2.left - (i ? b1.right : b1.left);
+                b1 = b2;
+              });
+              gsap.set(items, {
+                xPercent: i => xPercents[i]
+              });
+              totalWidth = getTotalWidth();
+            },
+            timeWrap,
+            populateOffsets = () => {
+              timeOffset = center ? tl.duration() * (container.offsetWidth / 2) / totalWidth : 0;
+              center && times.forEach((t, i) => {
+                times[i] = timeWrap(tl.labels["label" + i] + tl.duration() * widths[i] / 2 / totalWidth - timeOffset);
+              });
+            },
+            getClosest = (values, value, wrap) => {
+              let i = values.length,
+                closest = 1e10,
+                index = 0, d;
+              while (i--) {
+                d = Math.abs(values[i] - value);
+                if (d > wrap / 2) {
+                  d = wrap - d;
+                }
+                if (d < closest) {
+                  closest = d;
+                  index = i;
+                }
+              }
+              return index;
+            },
+            populateTimeline = () => {
+              let i, item, curX, distanceToStart, distanceToLoop;
+              tl.clear();
+              for (i = 0; i < length; i++) {
+                item = items[i];
+                curX = xPercents[i] / 100 * widths[i];
+                distanceToStart = item.offsetLeft + curX - startX + spaceBefore[0];
+                distanceToLoop = distanceToStart + widths[i] * gsap.getProperty(item, "scaleX");
+                tl.to(item, { xPercent: snap((curX - distanceToLoop) / widths[i] * 100), duration: distanceToLoop / pixelsPerSecond }, 0)
+                  .fromTo(item, { xPercent: snap((curX - distanceToLoop + totalWidth) / widths[i] * 100) }, { xPercent: xPercents[i], duration: (curX - distanceToLoop + totalWidth - curX) / pixelsPerSecond, immediateRender: false }, distanceToLoop / pixelsPerSecond)
+                  .add("label" + i, distanceToStart / pixelsPerSecond);
+                times[i] = distanceToStart / pixelsPerSecond;
+              }
+              timeWrap = gsap.utils.wrap(0, tl.duration());
+            },
+            refresh = (deep) => {
+              let progress = tl.progress();
+              tl.progress(0, true);
+              populateWidths();
+              deep && populateTimeline();
+              populateOffsets();
+              deep && tl.draggable ? tl.time(times[curIndex], true) : tl.progress(progress, true);
+            },
+            onResize = () => refresh(true),
+            proxy;
+          gsap.set(items, { x: 0 });
+          populateWidths();
+          populateTimeline();
+          populateOffsets();
+          window.addEventListener("resize", onResize);
+          function toIndex(index, vars) {
+            vars = vars || {};
+            (Math.abs(index - curIndex) > length / 2) && (index += index > curIndex ? -length : length);
+            let newIndex = gsap.utils.wrap(0, length, index),
+              time = times[newIndex];
+            if (time > tl.time() !== index > curIndex && index !== curIndex) {
+              time += tl.duration() * (index > curIndex ? 1 : -1);
+            }
+            if (time < 0 || time > tl.duration()) {
+              vars.modifiers = { time: timeWrap };
+            }
+            curIndex = newIndex;
+            vars.overwrite = true;
+            gsap.killTweensOf(proxy);
+            return vars.duration === 0 ? tl.time(timeWrap(time)) : tl.tweenTo(time, vars);
+          }
+          tl.toIndex = (index, vars) => toIndex(index, vars);
+          tl.closestIndex = setCurrent => {
+            let index = getClosest(times, tl.time(), tl.duration());
+            if (setCurrent) {
+              curIndex = index;
+              indexIsDirty = false;
+            }
+            return index;
+          };
+          tl.current = () => indexIsDirty ? tl.closestIndex(true) : curIndex;
+          tl.next = vars => toIndex(tl.current() + 1, vars);
+          tl.previous = vars => toIndex(tl.current() - 1, vars);
+          tl.times = times;
+          tl.progress(1, true).progress(0, true);
+          if (config.reversed) {
+            tl.vars.onReverseComplete();
+            tl.reverse();
+          }
+          if (config.draggable && typeof (Draggable) === "function") {
+            proxy = document.createElement("div");
+            let wrap = gsap.utils.wrap(0, 1),
+              ratio, startProgress, draggable, dragSnap, lastSnap, initChangeX, wasPlaying,
+              align = () => tl.progress(wrap(startProgress + (draggable.startX - draggable.x) * ratio)),
+              syncIndex = () => tl.closestIndex(true);
+            typeof (InertiaPlugin) === "undefined" && console.warn("InertiaPlugin required for momentum-based scrolling and snapping. https://greensock.com/club");
+            draggable = Draggable.create(proxy, {
+              trigger: items[0].parentNode,
+              type: "x",
+              onPressInit() {
+                let x = this.x;
+                gsap.killTweensOf(tl);
+                wasPlaying = !tl.paused();
+                tl.pause();
+                startProgress = tl.progress();
+                refresh();
+                ratio = 1 / totalWidth;
+                initChangeX = (startProgress / -ratio) - x;
+                gsap.set(proxy, { x: startProgress / -ratio });
+              },
+              onDrag: align,
+              onThrowUpdate: align,
+              overshootTolerance: 0,
+              inertia: true,
+              snap(value) {
+                if (Math.abs(startProgress / -ratio - this.x) < 10) {
+                  return lastSnap + initChangeX;
+                }
+                let time = -(value * ratio) * tl.duration(),
+                  wrappedTime = timeWrap(time),
+                  snapTime = times[getClosest(times, wrappedTime, tl.duration())],
+                  dif = snapTime - wrappedTime;
+                Math.abs(dif) > tl.duration() / 2 && (dif += dif < 0 ? tl.duration() : -tl.duration());
+                lastSnap = (time + dif) / tl.duration() / -ratio;
+                return lastSnap;
+              },
+              onRelease() {
+                syncIndex();
+                draggable.isThrowing && (indexIsDirty = true);
+              },
+              onThrowComplete: () => {
+                syncIndex();
+                wasPlaying && tl.play();
+              }
+            })[0];
+            tl.draggable = draggable;
+          }
+          tl.closestIndex(true);
+          lastIndex = curIndex;
+          onChange && onChange(items[curIndex], curIndex);
+          timeline = tl;
+          return () => window.removeEventListener("resize", onResize);
+        });
+        return timeline;
+      }
+
+      initSlider();
+
+    });
+  </script>
+
+</body>
+</html>
+
